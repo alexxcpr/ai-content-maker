@@ -1,103 +1,209 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import Sidebar from '@/components/layout/Sidebar';
+import MainGenerator from '@/components/features/MainGenerator';
+import ProgressTracker from '@/components/features/ProgressTracker';
+import SceneDisplay from '@/components/features/SceneDisplay';
+import { GeneratedContent, GenerationSettings } from '@/types/content.types';
+import { apiService } from '@/services/api';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Ref pentru cleanup function
+  const pollingCleanupRef = useRef<(() => void) | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  // Cleanup polling când componenta se demontează
+  useEffect(() => {
+    return () => {
+      if (pollingCleanupRef.current) {
+        pollingCleanupRef.current();
+      }
+    };
+  }, []);
+
+  const handleGenerate = async (prompt: string, settings: GenerationSettings) => {
+    // Oprește polling-ul anterior dacă există
+    if (pollingCleanupRef.current) {
+      pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+    }
+
+    setIsGenerating(true);
+    setShowProgress(true);
+    setError(null);
+    setGeneratedContent(null);
+
+    try {
+      // Validări suplimentare pe frontend
+      if (!prompt || prompt.trim().length < 10) {
+        throw new Error('Promptul trebuie să aibă cel puțin 10 caractere');
+      }
+
+      if (settings.numberOfScenes < 1 || settings.numberOfScenes > 10) {
+        throw new Error('Numărul de scene trebuie să fie între 1 și 10');
+      }
+
+      // Trimite cererea la backend
+      const response = await apiService.generateContent({
+        userPrompt: prompt,
+        numberOfScenes: settings.numberOfScenes,
+        settings: {
+          imageModel: settings.imageModel,
+          textModel: settings.textModel,
+          animationModel: settings.animationModel,
+          imageStyle: settings.imageStyle
+        }
+      });
+
+      // Începe polling pentru actualizări cu cleanup
+      const cleanup = await apiService.pollContentStatus(
+        response.contentId,
+        (content) => {
+          setGeneratedContent(content);
+        },
+        {
+          interval: 2000,
+          maxRetries: 30, // 1 minut de retry-uri
+          onError: (pollingError) => {
+            console.error('Eroare la polling:', pollingError);
+            setError(`Eroare la urmărirea progresului: ${pollingError.message}`);
+            setIsGenerating(false);
+          },
+          onComplete: () => {
+            setIsGenerating(false);
+            pollingCleanupRef.current = null;
+          }
+        }
+      );
+
+      // Salvează cleanup function
+      pollingCleanupRef.current = cleanup;
+
+    } catch (err) {
+      console.error('Eroare la generare:', err);
+      
+      let errorMessage = 'Eroare la generare conținut';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+      
+      setError(errorMessage);
+      setIsGenerating(false);
+      setShowProgress(false);
+    }
+  };
+
+  const handleDismissError = () => {
+    setError(null);
+  };
+
+  const handleRetry = () => {
+    if (generatedContent && generatedContent.userPrompt) {
+      // Reîncearcă cu ultimele setări
+      const lastSettings: GenerationSettings = {
+        numberOfScenes: generatedContent.settings.numberOfScenes,
+        imageModel: generatedContent.settings.imageModel as 'gemini' | 'cgdream',
+        textModel: generatedContent.settings.textModel,
+        animationModel: generatedContent.settings.animationModel as 'kling' | 'runway',
+        imageStyle: generatedContent.settings.imageStyle as 'realistic' | 'cartoon' | 'artistic' | 'abstract'
+      };
+      
+      handleGenerate(generatedContent.userPrompt, lastSettings);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen bg-gray-900">
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        <div className="container mx-auto py-8">
+          {/* Header */}
+          <header className="text-center mb-12">
+            <h1 className="text-5xl font-bold mb-4 gradient-text animate-gradient">
+              AI Content Maker
+            </h1>
+            <p className="text-xl text-gray-400">
+              Transformă ideile tale în povești vizuale captivante
+            </p>
+          </header>
+
+          {/* Error Display */}
+          {error && (
+            <div className="max-w-4xl mx-auto mb-6">
+              <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg flex items-start justify-between">
+                <div>
+                  <p className="font-medium">Eroare:</p>
+                  <p>{error}</p>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  {generatedContent && (
+                    <button
+                      onClick={handleRetry}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-medium transition-colors"
+                      disabled={isGenerating}
+                    >
+                      Reîncearcă
+                    </button>
+                  )}
+                  <button
+                    onClick={handleDismissError}
+                    className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm font-medium transition-colors"
+                  >
+                    Închide
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Generator Form */}
+          <MainGenerator 
+            onGenerate={handleGenerate} 
+            isGenerating={isGenerating} 
+          />
+
+          {/* Progress Tracker */}
+          {showProgress && generatedContent && (
+            <ProgressTracker 
+              scenes={generatedContent.scenes}
+              totalScenes={generatedContent.settings.numberOfScenes}
+              overallStatus={generatedContent.overallStatus}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          )}
+
+          {/* Scene Display */}
+          {generatedContent && generatedContent.scenes.length > 0 && (
+            <SceneDisplay scenes={generatedContent.scenes} />
+          )}
+
+          {/* Loading state când nu avem încă conținut */}
+          {isGenerating && !generatedContent && (
+            <div className="max-w-4xl mx-auto mt-8">
+              <div className="glass rounded-2xl p-8 text-center">
+                <div className="animate-spin h-12 w-12 mx-auto mb-4">
+                  <svg viewBox="0 0 24 24" className="text-primary-500">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Inițializare generare...</h3>
+                <p className="text-gray-400">Vă rugăm așteptați mentre procesăm cererea dumneavoastră</p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
