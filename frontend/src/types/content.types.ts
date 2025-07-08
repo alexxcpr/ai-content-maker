@@ -4,7 +4,17 @@ export interface GenerationSettings {
   imageModel: 'gemini' | 'cgdream';
   textModel: string;
   animationModel: 'kling' | 'runway';
-  imageStyle: 'realistic' | 'cartoon' | 'artistic' | 'abstract';
+  imageStyle: 'realistic' | 'cartoon' | 'artistic' | 'abstract' | 
+              'photographic' | 'cinematic' | 'oil-painting' | 'watercolor' | 
+              'anime' | 'pixel-art';
+  // Proprietăți adăugate din ExtendedGenerationSettings
+  aspectRatio?: string;
+  animationsEnabled: boolean;
+  soundEnabled: boolean;
+  referenceCharacterImage?: string | null;
+  referenceBackgroundImage?: string | null;
+  characterInfluence?: number;
+  backgroundInfluence?: number;
 }
 
 // Tipuri pentru scene
@@ -44,6 +54,14 @@ export interface GenerateContentRequest {
     textModel: string;
     animationModel: string;
     imageStyle: string;
+    // Proprietăți adăugate din ExtendedGenerationSettings
+    aspectRatio?: string;
+    animationsEnabled?: boolean;
+    soundEnabled?: boolean;
+    referenceCharacterImage?: string | null;
+    referenceBackgroundImage?: string | null;
+    characterInfluence?: number;
+    backgroundInfluence?: number;
   };
 }
 

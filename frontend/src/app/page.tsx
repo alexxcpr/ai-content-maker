@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Sidebar from '@/components/layout/Sidebar';
+import dynamic from 'next/dynamic';
 import MainGenerator from '@/components/features/MainGenerator';
 import ProgressTracker from '@/components/features/ProgressTracker';
 import SceneDisplay from '@/components/features/SceneDisplay';
 import { GeneratedContent, GenerationSettings } from '@/types/content.types';
 import { apiService } from '@/services/api';
+
+const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), { ssr: true });
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -113,7 +115,10 @@ export default function Home() {
         imageModel: generatedContent.settings.imageModel as 'gemini' | 'cgdream',
         textModel: generatedContent.settings.textModel,
         animationModel: generatedContent.settings.animationModel as 'kling' | 'runway',
-        imageStyle: generatedContent.settings.imageStyle as 'realistic' | 'cartoon' | 'artistic' | 'abstract'
+        imageStyle: generatedContent.settings.imageStyle as 'realistic' | 'cartoon' | 'artistic' | 'abstract',
+        // Adăugăm proprietățile obligatorii lipsă
+        animationsEnabled: generatedContent.settings.animationsEnabled ?? true,
+        soundEnabled: generatedContent.settings.soundEnabled ?? false
       };
       
       handleGenerate(generatedContent.userPrompt, lastSettings);
