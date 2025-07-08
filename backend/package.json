@@ -10,7 +10,12 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
-  "keywords": ["api", "express", "typescript", "mongodb"],
+  "keywords": [
+    "api",
+    "express",
+    "typescript",
+    "mongodb"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

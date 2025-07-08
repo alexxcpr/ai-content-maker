@@ -3,6 +3,17 @@ import { validationResult } from 'express-validator';
 import GeneratedContent, { IGeneratedContent } from '../models/GeneratedContent';
 import * as aiService from '../services/aiIntegrations';
 
+import { GenerationSettings } from '../types/content.types';
+import { 
+  TextGenerationModel,
+  AITextGenerationRequest,
+  AIImageGenerationRequest,
+  AIAnimationGenerationRequest,
+  ImageGenerationModel,
+  AnimationGenerationModel,
+  AISceneResponse
+} from '../types/ai.generation.types';
+
 /**
  * Generează conținut nou
  */
@@ -18,9 +29,12 @@ export const generateContent = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const { userPrompt, numberOfScenes, settings } = req.body;
+    const { userPrompt, numberOfScenes, settings } = req.body as { userPrompt: string, numberOfScenes: number, settings: GenerationSettings };
     const userId = req.body.userId || 'anonymous'; // În producție, ar veni din autentificare
 
+    console.log('userPrompt', userPrompt);
+    console.log('numberOfScenes', numberOfScenes);
+    console.log('settings', settings);
     // Validări adiționale
     if (!userPrompt || typeof userPrompt !== 'string') {
       res.status(400).json({ error: 'Promptul utilizatorului este necesar' });
@@ -62,8 +76,18 @@ export const generateContent = async (req: Request, res: Response): Promise<void
       userId,
       userPrompt,
       settings: {
-        numberOfScenes,
-        ...settings
+        numberOfScenes: numberOfScenes,
+        imageModel: settings.imageModel,
+        textModel: settings.textModel,
+        animationModel: settings.animationModel,
+        imageStyle: settings.imageStyle,
+        aspectRatio: settings.aspectRatio,
+        animationsEnabled: settings.animationsEnabled,
+        soundEnabled: settings.soundEnabled,
+        referenceCharacterImage: settings.referenceCharacterImage,
+        referenceBackgroundImage: settings.referenceBackgroundImage,
+        characterInfluence: settings.characterInfluence,
+        backgroundInfluence: settings.backgroundInfluence,
       },
       scenes: [],
       overallStatus: 'processing'
@@ -80,7 +104,7 @@ export const generateContent = async (req: Request, res: Response): Promise<void
     });
 
     // Procesează asincron
-    processContentGeneration(generatedContent).catch(error => {
+    generateScenesContentWithAI(generatedContent).catch(error => {
       console.error('Eroare în procesarea asincronă:', error);
     });
 
@@ -269,6 +293,9 @@ export const updateScene = async (req: Request, res: Response): Promise<void> =>
 export const getAvailableModels = async (req: Request, res: Response): Promise<void> => {
   try {
     const models = aiService.getAvailableModels();
+    
+    // Add cache control headers to allow frontend to cache the result
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     res.json(models);
   } catch (error) {
     console.error('Eroare la obținere modele:', error);
@@ -277,18 +304,40 @@ export const getAvailableModels = async (req: Request, res: Response): Promise<v
 };
 
 /**
- * Procesează generarea conținutului asincron
+ * Procesează generarea conținutului asincron folosind modelul de AI selectat
  */
-async function processContentGeneration(content: IGeneratedContent) {
+async function generateScenesContentWithAI(content: IGeneratedContent) {
   try {
     const { userPrompt, settings } = content;
+    let sceneTemplates: AISceneResponse[] = [];
 
-    // Pas 1: Generează conținutul text cu Gemini
-    const sceneTemplates = await aiService.generateWithGemini(
-      userPrompt,
-      settings.numberOfScenes,
-      settings.textModel
-    );
+    // Selectăm metoda de generare text în funcție de modelul ales
+    console.log(`Using text generation model: ${settings.textModel}`);
+
+    // Construim obiectul de request pentru generarea de text
+    const textGenerationRequest: AITextGenerationRequest = {
+      prompt: userPrompt,
+      numberOfScenes: settings.numberOfScenes,
+      model: settings.textModel,
+      language: 'ro'
+    };
+
+    // Generează conținutul text cu modelul selectat
+    if (settings.textModel.startsWith('gemini')) {
+      sceneTemplates = await aiService.generateWithGemini(
+        textGenerationRequest.prompt,
+        textGenerationRequest.numberOfScenes,
+        settings.textModel
+      );
+    } else if (settings.textModel.startsWith('gpt')) {
+      sceneTemplates = await aiService.generateWithOpenAI(
+        textGenerationRequest.prompt,
+        textGenerationRequest.numberOfScenes,
+        settings.textModel
+      );
+    } else {
+      throw new Error(`Model de text nesupportat: ${settings.textModel}`);
+    }
 
     // Verifică dacă avem suficiente template-uri
     if (!sceneTemplates || sceneTemplates.length === 0) {
@@ -331,10 +380,19 @@ async function processContentGeneration(content: IGeneratedContent) {
           continue;
         }
 
+        // Construim obiectul de request pentru generarea de imagini
+        const imageGenerationRequest: AIImageGenerationRequest = {
+          description: scene.descriere_imagine,
+          model: settings.imageModel,
+          style: settings.imageStyle,
+          aspectRatio: settings.aspectRatio,
+          referenceImage: settings.referenceCharacterImage
+        };
+
         const imageUrl = await aiService.generateImage(
-          scene.descriere_imagine,
-          settings.imageModel as 'gemini' | 'cgdream',
-          settings.imageStyle
+          imageGenerationRequest.description,
+          imageGenerationRequest.model,
+          imageGenerationRequest.style
         );
 
         scene.imagine = imageUrl;
@@ -348,42 +406,59 @@ async function processContentGeneration(content: IGeneratedContent) {
     }
 
     // Pas 3: Generează animațiile (opțional, poate fi dezactivat)
-    for (let i = 0; i < content.scenes.length; i++) {
-      const scene = content.scenes[i];
-      
-      if (scene.imagine && scene.status.image === 'completed' && scene.descriere_animatie) {
-        try {
-          const animationUrl = await aiService.generateAnimation(
-            scene.imagine,
-            scene.descriere_animatie,
-            settings.animationModel as 'kling' | 'runway'
-          );
+    if (settings.animationsEnabled) {
+      for (let i = 0; i < content.scenes.length; i++) {
+        const scene = content.scenes[i];
+        
+        if (scene.imagine && scene.status.image === 'completed' && scene.descriere_animatie) {
+          try {
+            // Construim obiectul de request pentru generarea de animații
+            const animationGenerationRequest: AIAnimationGenerationRequest = {
+              imageUrl: scene.imagine,
+              description: scene.descriere_animatie,
+              model: settings.animationModel,
+              duration: 5, // Default duration in seconds
+              fps: 24 // Default fps
+            };
 
-          scene.imagine_animata = animationUrl;
-          scene.status.animation = 'completed';
-          await content.save();
-        } catch (error) {
-          console.error(`Eroare la generare animație pentru scena ${i + 1}:`, error);
+            const animationUrl = await aiService.generateAnimation(
+              animationGenerationRequest.imageUrl,
+              animationGenerationRequest.description,
+              animationGenerationRequest.model
+            );
+
+            scene.imagine_animata = animationUrl;
+            scene.status.animation = 'completed';
+            await content.save();
+          } catch (error) {
+            console.error(`Eroare la generare animație pentru scena ${i + 1}:`, error);
+            scene.status.animation = 'error';
+            await content.save();
+          }
+        } else {
+          // Marchează animația ca error dacă nu poate fi generată
           scene.status.animation = 'error';
-          await content.save();
         }
-      } else {
-        // Marchează animația ca error dacă nu poate fi generată
+      }
+    } else {
+      // Dacă animațiile sunt dezactivate, marchează toate statusurile de animație ca 'error'
+      for (const scene of content.scenes) {
         scene.status.animation = 'error';
       }
+      await content.save();
     }
 
     // Determină status-ul general
     const allCompleted = content.scenes.every(scene => 
       scene.status.text === 'completed' && 
       scene.status.image === 'completed' && 
-      scene.status.animation === 'completed'
+      (settings.animationsEnabled ? scene.status.animation === 'completed' : true)
     );
 
     const hasErrors = content.scenes.some(scene =>
       scene.status.text === 'error' ||
       scene.status.image === 'error' ||
-      scene.status.animation === 'error'
+      (settings.animationsEnabled ? scene.status.animation === 'error' : false)
     );
 
     if (allCompleted) {

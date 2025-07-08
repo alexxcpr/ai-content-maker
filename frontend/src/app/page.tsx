@@ -58,7 +58,14 @@ export default function Home() {
           imageModel: settings.imageModel,
           textModel: settings.textModel,
           animationModel: settings.animationModel,
-          imageStyle: settings.imageStyle
+          imageStyle: settings.imageStyle,
+          aspectRatio: settings.aspectRatio,
+          animationsEnabled: settings.animationsEnabled,
+          soundEnabled: settings.soundEnabled,
+          referenceCharacterImage: settings.referenceCharacterImage,
+          referenceBackgroundImage: settings.referenceBackgroundImage,
+          characterInfluence: settings.characterInfluence,
+          backgroundInfluence: settings.backgroundInfluence
         }
       });
 
@@ -69,14 +76,15 @@ export default function Home() {
           setGeneratedContent(content);
         },
         {
-          interval: 2000,
-          maxRetries: 30, // 1 minut de retry-uri
+          interval: 2000, // 2 secunde
+          maxRetries: 160, // 320 secunde = 5 minute
           onError: (pollingError) => {
             console.error('Eroare la polling:', pollingError);
             setError(`Eroare la urmărirea progresului: ${pollingError.message}`);
             setIsGenerating(false);
           },
           onComplete: () => {
+            console.log('[' + Date.now() + '] Polling completat');
             setIsGenerating(false);
             pollingCleanupRef.current = null;
           }
@@ -117,8 +125,13 @@ export default function Home() {
         animationModel: generatedContent.settings.animationModel as 'kling' | 'runway',
         imageStyle: generatedContent.settings.imageStyle as 'realistic' | 'cartoon' | 'artistic' | 'abstract',
         // Adăugăm proprietățile obligatorii lipsă
-        animationsEnabled: generatedContent.settings.animationsEnabled ?? true,
-        soundEnabled: generatedContent.settings.soundEnabled ?? false
+        aspectRatio: generatedContent.settings.aspectRatio,
+        animationsEnabled: generatedContent.settings.animationsEnabled ?? false,
+        soundEnabled: generatedContent.settings.soundEnabled ?? false,
+        referenceCharacterImage: generatedContent.settings.referenceCharacterImage ?? undefined,
+        referenceBackgroundImage: generatedContent.settings.referenceBackgroundImage ?? undefined,
+        characterInfluence: generatedContent.settings.characterInfluence ?? undefined,
+        backgroundInfluence: generatedContent.settings.backgroundInfluence ?? undefined
       };
       
       handleGenerate(generatedContent.userPrompt, lastSettings);

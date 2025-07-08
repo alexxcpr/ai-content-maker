@@ -17,17 +17,17 @@ import { StyleSelector } from '@/components/ui/StyleSelector';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 import { ImageUploader } from '@/components/ui/ImageUploader';
 
-// Import constante
-import { 
-  imageModels, 
-  textModels, 
-  animationModels, 
-  imageStyles, 
-  aspectRatios,
-  animations 
-} from '@/utils/generator-constants';
+// Import modelProvider instead of static constants
+import { modelProvider, ModelsData, StyleCategory } from '@/utils/modelProvider';
+
+// Keep only the animations import
+import { animations } from '@/utils/generator-constants';
 
 export default function MainGenerator({ onGenerate, isGenerating }: MainGeneratorProps) {
+  // Add state for models
+  const [models, setModels] = useState<ModelsData | null>(null);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+
   const [prompt, setPrompt] = useState('');
   const [settings, setSettings] = useState<GenerationSettings>({
     numberOfScenes: 3,
@@ -81,6 +81,23 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
        settings.imageStyle, settings.aspectRatio, settings.animationsEnabled, 
        settings.soundEnabled]);
 
+  // Fetch models on component mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      try {
+        setIsLoadingModels(true);
+        const fetchedModels = await modelProvider.getModels();
+        setModels(fetchedModels);
+      } catch (error) {
+        console.error('Error fetching models:', error);
+      } finally {
+        setIsLoadingModels(false);
+      }
+    };
+
+    fetchModels();
+  }, []);
+
   // Validare prompt în timp real
   const promptValidation = useMemo(() => {
     const trimmedPrompt = prompt.trim();
@@ -128,7 +145,12 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
     reader.readAsDataURL(file);
   }, []);
 
+  // Replace references to hardcoded constants with dynamic models
+  // In the validateForm function
   const validateForm = useCallback((): boolean => {
+    // Skip validation if models are still loading
+    if (!models) return false;
+    
     const newErrors: Record<string, string> = {};
 
     // Validare prompt
@@ -142,28 +164,65 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
     }
 
     // Validare modele
-    if (!imageModels.some(model => model.value === settings.imageModel)) {
+    if (!models.image.some(model => model.value === settings.imageModel)) {
       newErrors.imageModel = 'Model imagine invalid';
     }
 
-    if (!textModels.some(model => model.value === settings.textModel)) {
+    if (!models.text.some(model => model.value === settings.textModel)) {
       newErrors.textModel = 'Model text invalid';
     }
 
     if (settings.animationsEnabled && 
-        !animationModels.some(model => model.value === settings.animationModel)) {
+        !models.animation.some(model => model.value === settings.animationModel)) {
       newErrors.animationModel = 'Model animație invalid';
     }
 
     // Validare stil imagine
-    const allStyles = imageStyles.flatMap(category => category.styles);
+    const allStyles = models.imageStyles.flatMap(category => category.styles);
     if (!allStyles.some(style => style.value === settings.imageStyle)) {
       newErrors.imageStyle = 'Stil imagine invalid';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [promptValidation, settings]);
+  }, [promptValidation, settings, models]);
+
+  // When models are loaded, update settings if needed
+  useEffect(() => {
+    if (models) {
+      // Update settings if current values are no longer valid in the new models
+      const settingsUpdates: Partial<GenerationSettings> = {};
+      
+      // Check if image model is still valid
+      if (!models.image.some(model => model.value === settings.imageModel)) {
+        const defaultModel = models.image.find(model => model.available)?.value || models.image[0].value;
+        settingsUpdates.imageModel = defaultModel as any;
+      }
+      
+      // Check if text model is still valid
+      if (!models.text.some(model => model.value === settings.textModel)) {
+        const defaultModel = models.text.find(model => model.available)?.value || models.text[0].value;
+        settingsUpdates.textModel = defaultModel;
+      }
+      
+      // Check if animation model is still valid
+      if (!models.animation.some(model => model.value === settings.animationModel)) {
+        const defaultModel = models.animation.find(model => model.available)?.value || models.animation[0].value;
+        settingsUpdates.animationModel = defaultModel as any;
+      }
+      
+      // Check if image style is still valid
+      const allStyles = models.imageStyles.flatMap(category => category.styles);
+      if (!allStyles.some(style => style.value === settings.imageStyle)) {
+        settingsUpdates.imageStyle = allStyles[0].value as any;
+      }
+      
+      // Apply updates if needed
+      if (Object.keys(settingsUpdates).length > 0) {
+        setSettings(prev => ({ ...prev, ...settingsUpdates }));
+      }
+    }
+  }, [models, settings.imageModel, settings.textModel, settings.animationModel, settings.imageStyle]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -184,10 +243,10 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
         aspectRatio: settings.aspectRatio,
         animationsEnabled: settings.animationsEnabled,
         soundEnabled: settings.soundEnabled,
-        referenceCharacterImage: settings.referenceCharacterImage,
-        referenceBackgroundImage: settings.referenceBackgroundImage,
-        characterInfluence: settings.characterInfluence,
-        backgroundInfluence: settings.backgroundInfluence
+        referenceCharacterImage: settings.referenceCharacterImage || undefined,
+        referenceBackgroundImage: settings.referenceBackgroundImage || undefined,
+        characterInfluence: settings.characterInfluence || undefined,
+        backgroundInfluence: settings.backgroundInfluence || undefined
       };
 
       onGenerate(prompt.trim(), apiSettings);
@@ -211,6 +270,15 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
     if (iconName === 'Square') return <div className="w-5 h-5 border-2 rounded-sm"></div>;
     return null;
   };
+
+  // Display loading state if models are still loading
+  if (isLoadingModels) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div 
@@ -327,7 +395,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                 tooltip="Formatul imaginilor generate"
               >
                 <div className="grid grid-cols-3 gap-2">
-                  {aspectRatios.map((ratio) => (
+                  {models?.aspectRatios.map((ratio) => (
                     <button
                       key={ratio.value}
                       type="button"
@@ -340,7 +408,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                           : 'bg-gray-700/30 border border-gray-700 text-gray-300 hover:bg-gray-700/50'}
                       `}
                     >
-                      {renderAspectRatioIcon(ratio.icon)}
+                      {renderAspectRatioIcon(ratio.icon || '')}
                       <span className="text-xs mt-1">{ratio.value}</span>
                     </button>
                   ))}
@@ -364,9 +432,9 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                   disabled={isGenerating}
                   aria-describedby={errors.imageModel ? 'imageModel-error' : undefined}
                 >
-                  {imageModels.map(model => (
-                    <option key={model.value} value={model.value}>
-                      {model.label}
+                  {models?.image.map(model => (
+                    <option key={model.value} value={model.value} disabled={!model.available}>
+                      {model.label} {!model.available ? '(indisponibil)' : ''}
                     </option>
                   ))}
                 </select>
@@ -421,7 +489,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                         disabled={isGenerating}
                         aria-describedby={errors.animationModel ? 'animationModel-error' : undefined}
                       >
-                        {animationModels.map(model => (
+                        {models?.animation.map(model => (
                           <option key={model.value} value={model.value}>
                             {model.label}
                           </option>
@@ -473,7 +541,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                   disabled={isGenerating}
                   aria-describedby={errors.textModel ? 'textModel-error' : undefined}
                 >
-                  {textModels.map(model => (
+                  {models?.text.map(model => (
                     <option key={model.value} value={model.value}>
                       {model.label}
                     </option>
@@ -496,7 +564,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
               tooltip="Alege stilul vizual pentru imaginile generate"
             >
               <StyleSelector 
-                styles={imageStyles}
+                styles={models?.imageStyles || []}
                 selectedStyle={settings.imageStyle}
                 onSelect={(style) => handleSettingsChange('imageStyle', style)}
                 disabled={isGenerating}

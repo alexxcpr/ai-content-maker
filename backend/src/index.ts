@@ -11,6 +11,9 @@ import { errorHandler } from './middleware/errorHandler';
 import userRoutes from './routes/user';
 import contentRoutes from './routes/content';
 
+// Import API key validator
+import { validateApiKeys } from './config/apiKeys';
+
 // Configurare variabile de mediu
 dotenv.config();
 
@@ -68,6 +71,9 @@ mongoose
   .then(() => {
     console.log('✅ Conectat la MongoDB');
     
+    // Validate API keys on startup
+    validateApiKeys();
+
     // Pornire server
     app.listen(PORT, () => {
       console.log(`🚀 Server pornit pe portul ${PORT}`);

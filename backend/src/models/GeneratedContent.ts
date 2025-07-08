@@ -1,3 +1,4 @@
+import { TextGenerationModel, ImageGenerationModel, AnimationGenerationModel } from '../types/ai.generation.types';
 import mongoose, { Schema, Document } from 'mongoose';
 
 // Interfețe pentru tipuri
@@ -19,10 +20,17 @@ interface IScene {
 
 interface IGenerationSettings {
   numberOfScenes: number;
-  imageModel: string;
-  textModel: string;
-  animationModel: string;
+  imageModel: ImageGenerationModel;
+  textModel: TextGenerationModel;
+  animationModel: AnimationGenerationModel;
   imageStyle: string;
+  aspectRatio: string;
+  animationsEnabled: boolean;
+  soundEnabled: boolean;
+  referenceCharacterImage: string | null;
+  referenceBackgroundImage: string | null;
+  characterInfluence: number | null;
+  backgroundInfluence: number | null;
 }
 
 export interface IGeneratedContent extends Document {
@@ -157,6 +165,40 @@ const GenerationSettingsSchema = new Schema({
       values: ['realistic', 'cartoon', 'artistic', 'abstract'],
       message: 'Stilul imaginii trebuie să fie unul din: realistic, cartoon, artistic, abstract'
     }
+  },
+  aspectRatio: {
+    type: String,
+    required: true,
+    enum: {
+      values: ['16:9', '1:1', '9:16'],
+      message: 'Aspect ratio-ul trebuie să fie unul din: 16:9, 1:1, 9:16'
+    }
+  },
+  animationsEnabled: {
+    type: Boolean,
+    required: true,
+    default: false
+  },
+  soundEnabled: {
+    type: Boolean,
+    required: true,
+    default: false
+  },
+  referenceCharacterImage: {
+    type: String,
+    default: null
+  },
+  referenceBackgroundImage: {
+    type: String,
+    default: null
+  },
+  characterInfluence: {
+    type: Number,
+    default: null
+  },
+  backgroundInfluence: {
+    type: Number,
+    default: null
   }
 }, { _id: false });
 

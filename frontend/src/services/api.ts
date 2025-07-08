@@ -137,7 +137,13 @@ class ApiService {
   }
 
   async getAvailableModels() {
-    return this.request('/content/settings/models');
+    // Add cache-aware fetch to reduce API calls
+    return this.request('/content/settings/models', {
+      headers: {
+        // Add cache validation headers
+        'Cache-Control': 'max-age=3600' // Cache client-side for up to an hour
+      }
+    });
   }
 
   // Polling pentru status cu improved error handling și cleanup

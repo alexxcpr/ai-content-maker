@@ -8,7 +8,7 @@ export interface GenerationSettings {
               'photographic' | 'cinematic' | 'oil-painting' | 'watercolor' | 
               'anime' | 'pixel-art';
   // Proprietăți adăugate din ExtendedGenerationSettings
-  aspectRatio?: string;
+  aspectRatio: string;
   animationsEnabled: boolean;
   soundEnabled: boolean;
   referenceCharacterImage?: string | null;
@@ -55,9 +55,9 @@ export interface GenerateContentRequest {
     animationModel: string;
     imageStyle: string;
     // Proprietăți adăugate din ExtendedGenerationSettings
-    aspectRatio?: string;
-    animationsEnabled?: boolean;
-    soundEnabled?: boolean;
+    aspectRatio: string;
+    animationsEnabled: boolean;
+    soundEnabled: boolean;
     referenceCharacterImage?: string | null;
     referenceBackgroundImage?: string | null;
     characterInfluence?: number;
