@@ -31,9 +31,9 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
   const [prompt, setPrompt] = useState('');
   const [settings, setSettings] = useState<GenerationSettings>({
     numberOfScenes: 3,
-    imageModel: 'gemini',
-    textModel: 'gemini-pro',
-    animationModel: 'kling',
+    imageModel: 'imagen-3.0-generate-002',
+    textModel: 'gemini-2.5-flash',
+    animationModel: 'runway',
     imageStyle: 'realistic',
     // Setări adiționale
     aspectRatio: '16:9',
@@ -163,18 +163,28 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
       newErrors.numberOfScenes = 'Numărul de scene trebuie să fie între 1 și 10';
     }
 
-    // Validare modele
-    if (!models.image.some(model => model.value === settings.imageModel)) {
+    // Validare modele - verificăm și disponibilitatea modelelor
+    const selectedImageModel = models.image.find(model => model.value === settings.imageModel);
+    if (!selectedImageModel) {
       newErrors.imageModel = 'Model imagine invalid';
+    } else if (!selectedImageModel.available) {
+      newErrors.imageModel = 'Modelul de imagine selectat nu este disponibil';
     }
 
-    if (!models.text.some(model => model.value === settings.textModel)) {
+    const selectedTextModel = models.text.find(model => model.value === settings.textModel);
+    if (!selectedTextModel) {
       newErrors.textModel = 'Model text invalid';
+    } else if (!selectedTextModel.available) {
+      newErrors.textModel = 'Modelul de text selectat nu este disponibil';
     }
 
-    if (settings.animationsEnabled && 
-        !models.animation.some(model => model.value === settings.animationModel)) {
-      newErrors.animationModel = 'Model animație invalid';
+    if (settings.animationsEnabled) {
+      const selectedAnimationModel = models.animation.find(model => model.value === settings.animationModel);
+      if (!selectedAnimationModel) {
+        newErrors.animationModel = 'Model animație invalid';
+      } else if (!selectedAnimationModel.available) {
+        newErrors.animationModel = 'Modelul de animație selectat nu este disponibil';
+      }
     }
 
     // Validare stil imagine
@@ -424,7 +434,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                 <select
                   id="imageModel"
                   value={settings.imageModel}
-                  onChange={(e) => handleSettingsChange('imageModel', e.target.value as 'gemini' | 'cgdream')}
+                  onChange={(e) => handleSettingsChange('imageModel', e.target.value)}
                   className={`w-full px-4 py-2 bg-gray-700/50 border rounded-lg
                           focus:ring-2 focus:ring-primary-500 focus:border-transparent
                           text-white transition-colors
@@ -481,7 +491,7 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                       <select
                         id="animationModel"
                         value={settings.animationModel}
-                        onChange={(e) => handleSettingsChange('animationModel', e.target.value as 'kling' | 'runway')}
+                        onChange={(e) => handleSettingsChange('animationModel', e.target.value)}
                         className={`w-full px-4 py-2 bg-gray-700/50 border rounded-lg
                                  focus:ring-2 focus:ring-primary-500 focus:border-transparent
                                  text-white transition-colors
@@ -490,8 +500,8 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                         aria-describedby={errors.animationModel ? 'animationModel-error' : undefined}
                       >
                         {models?.animation.map(model => (
-                          <option key={model.value} value={model.value}>
-                            {model.label}
+                          <option key={model.value} value={model.value} disabled={!model.available}>
+                            {model.label} {!model.available ? '(indisponibil)' : ''}
                           </option>
                         ))}
                       </select>
@@ -542,8 +552,8 @@ export default function MainGenerator({ onGenerate, isGenerating }: MainGenerato
                   aria-describedby={errors.textModel ? 'textModel-error' : undefined}
                 >
                   {models?.text.map(model => (
-                    <option key={model.value} value={model.value}>
-                      {model.label}
+                    <option key={model.value} value={model.value} disabled={!model.available}>
+                      {model.label} {!model.available ? '(indisponibil)' : ''}
                     </option>
                   ))}
                 </select>

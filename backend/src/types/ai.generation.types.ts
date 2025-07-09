@@ -7,7 +7,7 @@ export type TextGenerationModel =
                                 'gemini-2.5-flash' | 'gemini-2.5-pro' | 'gemini-2.5-flash-lite-preview-06-17' |
                                 'gpt-4' | 'gpt-4o' | 'gpt-4o-mini';
                                 
-export type ImageGenerationModel = 'gemini' | 'cgdream';
+export type ImageGenerationModel = 'models/gemini-2.0-flash-preview-image-generation' | 'cgdream' | 'imagen-3.0-generate-002';
 export type AnimationGenerationModel = 'kling' | 'runway';
 
 

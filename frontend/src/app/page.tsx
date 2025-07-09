@@ -51,6 +51,27 @@ export default function Home() {
       }
 
       // Trimite cererea la backend
+      console.log('==== REQUEST DATA ÎNAINTE DE TRIMITERE ====');
+      console.log('Model text selectat:', settings.textModel);
+      console.log('Datele complete pentru generare:', {
+        userPrompt: prompt,
+        numberOfScenes: settings.numberOfScenes,
+        settings: {
+          imageModel: settings.imageModel,
+          textModel: settings.textModel,
+          animationModel: settings.animationModel,
+          imageStyle: settings.imageStyle,
+          aspectRatio: settings.aspectRatio,
+          animationsEnabled: settings.animationsEnabled,
+          soundEnabled: settings.soundEnabled,
+          referenceCharacterImage: settings.referenceCharacterImage,
+          referenceBackgroundImage: settings.referenceBackgroundImage,
+          characterInfluence: settings.characterInfluence,
+          backgroundInfluence: settings.backgroundInfluence
+        }
+      });
+      console.log('=============================');
+      
       const response = await apiService.generateContent({
         userPrompt: prompt,
         numberOfScenes: settings.numberOfScenes,
@@ -120,10 +141,10 @@ export default function Home() {
       // Reîncearcă cu ultimele setări
       const lastSettings: GenerationSettings = {
         numberOfScenes: generatedContent.settings.numberOfScenes,
-        imageModel: generatedContent.settings.imageModel as 'gemini' | 'cgdream',
+        imageModel: generatedContent.settings.imageModel,
         textModel: generatedContent.settings.textModel,
-        animationModel: generatedContent.settings.animationModel as 'kling' | 'runway',
-        imageStyle: generatedContent.settings.imageStyle as 'realistic' | 'cartoon' | 'artistic' | 'abstract',
+        animationModel: generatedContent.settings.animationModel,
+        imageStyle: generatedContent.settings.imageStyle,
         // Adăugăm proprietățile obligatorii lipsă
         aspectRatio: generatedContent.settings.aspectRatio,
         animationsEnabled: generatedContent.settings.animationsEnabled ?? false,

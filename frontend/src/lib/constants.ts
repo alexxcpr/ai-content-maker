@@ -38,22 +38,6 @@ export const APP_CONFIG = {
   }
 } as const;
 
-// Modele disponibile
-export const AVAILABLE_MODELS = {
-  image: [
-    { value: 'gemini', label: 'Google Gemini', description: 'Model versatil pentru imagini de înaltă calitate' },
-    { value: 'cgdream', label: 'CGDream AI', description: 'Specializat în artă digitală și concepte creative' }
-  ],
-  text: [
-    { value: 'gemini-pro', label: 'Gemini Pro', description: 'Model avansat pentru generare text' },
-    { value: 'gemini-pro-vision', label: 'Gemini Pro Vision', description: 'Model cu capacități vizuale' }
-  ],
-  animation: [
-    { value: 'kling', label: 'Kling AI', description: 'Animații fluide și naturale' },
-    { value: 'runway', label: 'Runway ML', description: 'Animații creative și artistice' }
-  ]
-} as const;
-
 // Stiluri de imagine
 export const IMAGE_STYLES = [
   { value: 'realistic', label: 'Realist', description: 'Imagini foto-realiste' },

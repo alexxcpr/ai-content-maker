@@ -10,13 +10,24 @@ import {
 } from '../types/ai.generation.types';
 
 // Importăm librării necesare pentru API calls
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+// import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { GoogleGenAI, Modality } from '@google/genai';
+// import OpenAI from 'openai';
 
 // Import API keys from config
-import { GEMINI_API_KEY } from '../config/apiKeys';
+import { GEMINI_API_KEY, OPENAI_API_KEY } from '../config/apiKeys';
+
+import * as fs from "node:fs";
 
 // Inițializare Google Generative AI
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const geminiGenAI = new GoogleGenAI({
+  apiKey: GEMINI_API_KEY
+});
+
+// Inițializare OpenAI
+// const openai = new OpenAI({
+//   apiKey: OPENAI_API_KEY
+// });
 
 /**
  * Generează conținut folosind Gemini API
@@ -24,13 +35,13 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
  * @param numberOfScenes - Numărul de scene de generat
  * @param model - Modelul Gemini de folosit
  */
-export async function generateWithGemini(
+export async function generateContent(
   prompt: string, 
   numberOfScenes: number,
-  model: TextGenerationModel = 'gemini-2.5-flash'
+  model: TextGenerationModel
 ): Promise<AISceneResponse[]> {
   try {
-    console.log(`Generare conținut cu Gemini ${model} pentru ${numberOfScenes} scene`);
+    console.log(`Generare conținut cu modelul ${model} pentru ${numberOfScenes} scene`);
     
     const request: AITextGenerationRequest = {
       prompt,
@@ -38,8 +49,35 @@ export async function generateWithGemini(
       model: model
     };
     
+    // Redirectăm către funcția corespunzătoare în funcție de model
+    if (model.startsWith('gemini')) {
+      return await generateContentWithGemini(request);
+    } else if (model.startsWith('gpt')) {
+      // return await generateContentWithGPT(request);
+      console.error('Generarea cu OpenAI nu este încă implementată');
+      // throw new Error('Generarea cu OpenAI nu este încă implementată');
+      return [];
+    } else {
+      throw new Error(`Model text necunoscut: ${model}`);
+    }
+  } catch (error) {
+    console.error('Eroare la generarea conținutului:', error);
+    throw error;
+  }
+}
+
+/**
+ * Generează conținut folosind Gemini API
+ * @param request - Cererea de generare text
+ */
+async function generateContentWithGemini(
+  request: AITextGenerationRequest
+): Promise<AISceneResponse[]> {
+  try {
     // Inițializare model Gemini
-    const generativeModel = genAI.getGenerativeModel({ model });
+    const ai = new GoogleGenAI({
+      apiKey: GEMINI_API_KEY
+    });
     
     // Construim prompt-ul pentru a obține structura dorită
     const structuredPrompt = `
@@ -49,26 +87,23 @@ export async function generateWithGemini(
     Te rog să returnezi rezultatul ca un array JSON cu exactă această structură pentru fiecare scenă:
     {
       "sceneNumber": numărul scenei (începând de la 1),
-      "continut_text": textul narativ al scenei,
+      "continut_text": textul narativ al scenei (maxim 80 de caractere),
       "descriere_imagine": descriere detaliată pentru generarea unei imagini care să reprezinte scena,
       "descriere_animatie": instrucțiuni pentru cum ar trebui animată imaginea
     }
     `;
     
     // Generarea răspunsului
-    const result = await generativeModel.generateContent({
+    const result = await ai.models.generateContent({
+      model: request.model,
       contents: [{ role: "user", parts: [{ text: structuredPrompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 8192,
+      config: {
+        responseModalities: [Modality.TEXT],
       }
     });
     
     // Procesăm răspunsul pentru a extrage JSON-ul
-    const response = result.response;
-    const responseText = response.text();
+    const responseText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     // Extragem partea JSON din text
     const jsonMatch = responseText.match(/\[[\s\S]*\]/);
@@ -80,8 +115,8 @@ export async function generateWithGemini(
     const jsonResponse = JSON.parse(jsonMatch[0]) as AISceneResponse[];
     
     // Validăm că avem numărul corect de scene
-    if (jsonResponse.length !== numberOfScenes) {
-      console.warn(`Numărul de scene generate (${jsonResponse.length}) nu corespunde cu numărul solicitat (${numberOfScenes})`);
+    if (jsonResponse.length !== request.numberOfScenes) {
+      console.warn(`Numărul de scene generate (${jsonResponse.length}) nu corespunde cu numărul solicitat (${request.numberOfScenes})`);
     }
     
     return jsonResponse;
@@ -92,28 +127,77 @@ export async function generateWithGemini(
 }
 
 /**
- * Generează conținut folosind OpenAI API
- * @param prompt - Cerința utilizatorului
- * @param numberOfScenes - Numărul de scene de generat
- * @param model - Modelul OpenAI de folosit
+ * Generează conținut folosind OpenAI/GPT API
+ * @param request - Cererea de generare text
  */
-export async function generateWithOpenAI(
-  prompt: string, 
-  numberOfScenes: number,
-  model: TextGenerationModel = 'gpt-4'
-): Promise<AISceneResponse[]> {
-  // TODO: Implementare reală cu OpenAI API
-  console.log(`Generare conținut cu OpenAI ${model} pentru ${numberOfScenes} scene`);
-  
-  const request: AITextGenerationRequest = {
-    prompt,
-    numberOfScenes,
-    model: model
-  };
-  
-  // Pentru moment returnăm date mock până la implementarea completă
-  throw new Error('Generarea cu OpenAI nu este încă implementată');
-}
+// async function generateContentWithGPT(
+//   request: AITextGenerationRequest
+// ): Promise<AISceneResponse[]> {
+//   try {
+//     // Construim prompt-ul pentru a obține structura dorită
+//     const structuredPrompt = `
+//     Creează ${request.numberOfScenes} scene pentru un conținut creativ bazat pe următoarea cerință:
+//     "${request.prompt}"
+    
+//     Te rog să returnezi rezultatul ca un array JSON cu exactă această structură pentru fiecare scenă:
+//     {
+//       "sceneNumber": numărul scenei (începând de la 1),
+//       "continut_text": textul narativ al scenei (maxim 80 de caractere),
+//       "descriere_imagine": descriere detaliată pentru generarea unei imagini care să reprezinte scena,
+//       "descriere_animatie": instrucțiuni pentru cum ar trebui animată imaginea
+//     }
+    
+//     Răspunsul trebuie să fie doar array-ul JSON, fără alt text explicativ.
+//     `;
+    
+//     // Generarea răspunsului cu OpenAI
+//     const completion = await openai.chat.completions.create({
+//       model: request.model,
+//       messages: [
+//         {
+//           role: "system",
+//           content: "Ești un asistent creativ care generează conținut structurat în format JSON."
+//         },
+//         {
+//           role: "user",
+//           content: structuredPrompt
+//         }
+//       ],
+//       temperature: 0.7,
+//       max_tokens: 4000,
+//       response_format: { type: "json_object" }
+//     });
+    
+//     const responseContent = completion.choices[0]?.message?.content;
+    
+//     if (!responseContent) {
+//       throw new Error('Răspunsul OpenAI este gol');
+//     }
+    
+//     try {
+//       // Încercăm să parsăm direct răspunsul
+//       const parsedResponse = JSON.parse(responseContent);
+      
+//       // Verificăm dacă avem un array în proprietatea 'scenes' sau direct un array
+//       const jsonResponse = Array.isArray(parsedResponse) 
+//         ? parsedResponse as AISceneResponse[]
+//         : parsedResponse.scenes as AISceneResponse[];
+      
+//       // Validăm că avem numărul corect de scene
+//       if (jsonResponse.length !== request.numberOfScenes) {
+//         console.warn(`Numărul de scene generate (${jsonResponse.length}) nu corespunde cu numărul solicitat (${request.numberOfScenes})`);
+//       }
+      
+//       return jsonResponse;
+//     } catch (error) {
+//       console.error('Eroare la parsarea răspunsului OpenAI:', error);
+//       throw new Error('Nu s-a putut procesa răspunsul OpenAI');
+//     }
+//   } catch (error) {
+//     console.error('Eroare la generarea conținutului cu GPT:', error);
+//     throw error;
+//   }
+// }
 
 /**
  * Generează imagine folosind serviciul specificat
@@ -135,27 +219,55 @@ export async function generateImage(
     style
   };
   
-  if (model === 'gemini') {
+  if (model === 'imagen-3.0-generate-002') {
     try {
-      // Inițializare model Gemini pentru imagini
-      const generativeModel = genAI.getGenerativeModel({ model: 'gemini-pro-vision' });
-      
-      // Construim prompt-ul pentru a obține imaginea dorită
-      const imagePrompt = `
+      const ai = new GoogleGenAI({});
+
+      const contents = `
       Generează o imagine în stilul ${request.style} cu următoarea descriere:
       "${request.description}"
       `;
+
+      const response = await ai.models.generateContent({
+        model: 'imagen-3.0-generate-002',
+        contents: contents,
+        config: {
+          responseModalities: [Modality.TEXT, Modality.IMAGE],
+        }
+      });
+
+      if (response?.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.text) {
+            console.log(`descriere imagine oferita de Gemini: ${part.text}`);
+          } else if (part.inlineData && part.inlineData.data) {
+            const imageData = part.inlineData.data;
+            const buffer = Buffer.from(imageData, 'base64');
+            const imagePath = `./public/images/generated/image-${Date.now()}.png`;
+            fs.writeFileSync(imagePath, buffer);
+            console.log(`Imagine generata cu Gemini a fost salvata in ${imagePath}`);
+            return `/${imagePath.replace('./public/', '')}`;
+          }
+        }
+      }
       
-      // TODO: Implementare completă când Gemini va oferi API pentru generare de imagini
-      // Momentan returnăm un placeholder
-      
+      // Fallback to placeholder if no image was generated
+      console.log('Nu s-a putut genera imaginea, folosim placeholder');
       const randomId = Math.floor(Math.random() * 1000);
       return `https://picsum.photos/1024/768?random=${randomId}`;
+      
+      // throw new Error('Nu s-a putut genera imaginea');
     } catch (error) {
       console.error('Eroare la generarea imaginii cu Gemini:', error);
       throw error;
     }
-  } else if (model === 'cgdream') {
+  } else if (model === "models/gemini-2.0-flash-preview-image-generation") {
+    // TODO: Implementare pentru Imagen 3.0 Generate 002
+    console.log('Generare imagine cu Imagen 3.0 Generate 002');
+    const randomId = Math.floor(Math.random() * 1000);
+    return `https://picsum.photos/1024/768?random=${randomId}`;
+  } 
+  else if (model === 'cgdream') {
     // TODO: Implementare pentru CGDream
     const randomId = Math.floor(Math.random() * 1000);
     return `https://picsum.photos/1024/768?random=${randomId}`;
@@ -203,12 +315,16 @@ export function getAvailableModels() {
       { id: 'gpt-4o-mini', name: 'GPT-4o Mini', available: false }
     ],
     image: [
-      { id: 'gemini', name: 'Gemini', available: true },
-      { id: 'cgdream', name: 'CGDream AI', available: false }
+      { id: 'imagen-3.0-generate-002', name: 'Imagen 3.0 Generate 002', available: true },
+      { id: 'models/gemini-2.0-flash-preview-image-generation', name: 'Gemini 2.0 Flash Preview Image Generation', available: false },
+      { id: 'cgdream', name: 'CGDream AI Backend', available: false },
+      { id: 'dalle3', name: 'DALL-E 3', available: false },
+      { id: 'midjourney', name: 'Midjourney v6', available: false },
+      { id: 'stable-diffusion-xl', name: 'Stable Diffusion XL 1.0', available: false }
     ],
     animation: [
       { id: 'kling', name: 'Kling AI', available: false },
-      { id: 'runway', name: 'Runway ML', available: false }
+      { id: 'runway', name: 'Runway ML', available: true }
     ],
     imageStyles: [
       { 

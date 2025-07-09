@@ -141,7 +141,7 @@ class ApiService {
     return this.request('/content/settings/models', {
       headers: {
         // Add cache validation headers
-        'Cache-Control': 'max-age=3600' // Cache client-side for up to an hour
+        // 'Cache-Control': 'max-age=3600' // Cache client-side for up to an hour
       }
     });
   }

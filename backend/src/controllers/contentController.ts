@@ -19,9 +19,15 @@ import {
  */
 export const generateContent = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Afișează JSON-ul complet primit din frontend
+    console.log('==== REQUEST BODY COMPLET ====');
+    console.log(JSON.stringify(req.body, null, 2));
+    console.log('=============================');
+
     // Verifică erorile de validare
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('errors', errors.array());
       res.status(400).json({ 
         error: 'Datele de intrare sunt invalide',
         details: errors.array()
@@ -81,6 +87,7 @@ export const generateContent = async (req: Request, res: Response): Promise<void
         textModel: settings.textModel,
         animationModel: settings.animationModel,
         imageStyle: settings.imageStyle,
+        // Includem și celelalte proprietăți relevante
         aspectRatio: settings.aspectRatio,
         animationsEnabled: settings.animationsEnabled,
         soundEnabled: settings.soundEnabled,
@@ -295,7 +302,7 @@ export const getAvailableModels = async (req: Request, res: Response): Promise<v
     const models = aiService.getAvailableModels();
     
     // Add cache control headers to allow frontend to cache the result
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    // res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
     res.json(models);
   } catch (error) {
     console.error('Eroare la obținere modele:', error);
@@ -324,16 +331,16 @@ async function generateScenesContentWithAI(content: IGeneratedContent) {
 
     // Generează conținutul text cu modelul selectat
     if (settings.textModel.startsWith('gemini')) {
-      sceneTemplates = await aiService.generateWithGemini(
+      sceneTemplates = await aiService.generateContent(
         textGenerationRequest.prompt,
         textGenerationRequest.numberOfScenes,
-        settings.textModel
+        settings.textModel as TextGenerationModel
       );
     } else if (settings.textModel.startsWith('gpt')) {
-      sceneTemplates = await aiService.generateWithOpenAI(
+      sceneTemplates = await aiService.generateContent(
         textGenerationRequest.prompt,
         textGenerationRequest.numberOfScenes,
-        settings.textModel
+        settings.textModel as TextGenerationModel
       );
     } else {
       throw new Error(`Model de text nesupportat: ${settings.textModel}`);

@@ -1,7 +1,7 @@
 // Tipuri pentru setările de generare
 export interface GenerationSettings {
   numberOfScenes: number;
-  imageModel: 'gemini' | 'cgdream';
+  imageModel: 'models/gemini-2.0-flash-preview-image-generation' | 'cgdream';// | 'dalle3' | 'midjourney' | 'stable-diffusion-xl';
   textModel: string;
   animationModel: 'kling' | 'runway';
   imageStyle: 'realistic' | 'cartoon' | 'artistic' | 'abstract' | 

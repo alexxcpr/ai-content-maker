@@ -24,35 +24,35 @@ export interface ModelsData {
 // Default fallback values in case API fails
 const fallbackModels: ModelsData = {
   text: [
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash Fallback' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro Fallback' },
   ],
   image: [
-    { value: 'gemini', label: 'Gemini' },
-    { value: 'cgdream', label: 'CGDream AI' }
+    { value: 'models/gemini-2.0-flash-preview-image-generation', label: 'Gemini Fallback' },
+    { value: 'cgdream', label: 'CGDream AI Fallback' }
   ],
   animation: [
-    { value: 'kling', label: 'Kling AI' },
-    { value: 'runway', label: 'Runway ML' }
+    { value: 'kling', label: 'Kling AI Fallback' },
+    { value: 'runway', label: 'Runway ML Fallback' }
   ],
   imageStyles: [
     { 
-      category: 'Realist', 
+      category: 'Realist Fallback', 
       styles: [
-        { value: 'realistic', label: 'Realist', icon: '🖼️' },
-        { value: 'photographic', label: 'Fotografic', icon: '📷' }
+        { value: 'realistic', label: 'Realist Fallback', icon: '🖼️' },
+        { value: 'photographic', label: 'Fotografic Fallback', icon: '📷' }
       ] 
     },
     { 
-      category: 'Artistic', 
+      category: 'Artistic Fallback', 
       styles: [
-        { value: 'artistic', label: 'Artistic', icon: '🎨' }
+        { value: 'artistic', label: 'Artistic Fallback', icon: '🎨' }
       ] 
     }
   ],
   aspectRatios: [
-    { value: '16:9', label: 'Landscape (16:9)', icon: 'Maximize' },
-    { value: '1:1', label: 'Pătrat (1:1)', icon: 'Square' }
+    { value: '16:9', label: 'Landscape (16:9) Fallback', icon: 'Maximize' },
+    { value: '1:1', label: 'Pătrat (1:1) Fallback', icon: 'Square' }
   ]
 };
 

@@ -1,3 +1,4 @@
+import { StyleCategory } from '@/utils/modelProvider';
 import { GenerationSettings } from './content.types';
 
 // Interfață pentru proprietățile MainGenerator
@@ -25,14 +26,7 @@ export interface SettingsCardProps {
 
 // StyleSelector props
 export interface StyleSelectorProps {
-  styles: {
-    category: string;
-    styles: {
-      value: string;
-      label: string;
-      icon: string;
-    }[];
-  }[];
+  styles: StyleCategory[];
   selectedStyle: string;
   onSelect: (style: string) => void;
   disabled: boolean;

@@ -41,20 +41,17 @@ const generateValidation = [
     .withMessage('Setările trebuie să fie un obiect valid'),
   body('settings.imageModel')
     .isString()
-    .isIn(['gemini', 'cgdream'])
-    .withMessage('Model imagine trebuie să fie "gemini" sau "cgdream"'),
+    .withMessage('Model imagine trebuie să fie de tip string'),
   body('settings.textModel')
     .isString()
     .isLength({ min: 1, max: 50 })
     .withMessage('Model text trebuie să fie un string valid'),
   body('settings.animationModel')
     .isString()
-    .isIn(['kling', 'runway'])
-    .withMessage('Model animație trebuie să fie "kling" sau "runway"'),
+    .withMessage('Model animație trebuie să fie de tip string'),
   body('settings.imageStyle')
     .isString()
-    .isIn(['realistic', 'cartoon', 'artistic', 'abstract'])
-    .withMessage('Stil imagine trebuie să fie unul din: realistic, cartoon, artistic, abstract')
+    .withMessage('Stil imagine trebuie să fie de tip string')
 ];
 
 // Validare pentru ID MongoDB

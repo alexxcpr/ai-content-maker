@@ -140,8 +140,8 @@ const GenerationSettingsSchema = new Schema({
     type: String,
     required: true,
     enum: {
-      values: ['gemini', 'cgdream'],
-      message: 'Modelul de imagine trebuie să fie "gemini" sau "cgdream"'
+      values: ['models/gemini-2.0-flash-preview-image-generation', 'cgdream', 'imagen-3.0-generate-002', 'dalle3', 'midjourney', 'stable-diffusion-xl'],
+      message: 'Modelul de imagine trebuie să fie "models/gemini-2.0-flash-preview-image-generation" sau "cgdream" sau "imagen-3.0-generate-002" sau "dalle3" sau "midjourney" sau "stable-diffusion-xl"'
     }
   },
   textModel: {
@@ -162,8 +162,8 @@ const GenerationSettingsSchema = new Schema({
     type: String,
     required: true,
     enum: {
-      values: ['realistic', 'cartoon', 'artistic', 'abstract'],
-      message: 'Stilul imaginii trebuie să fie unul din: realistic, cartoon, artistic, abstract'
+      values: ['realistic', 'photographic', 'cinematic', 'artistic', 'oil-painting', 'watercolor', 'cartoon', 'anime', 'pixel-art', 'abstract'],
+      message: 'Stilul imaginii trebuie să fie unul din: realistic, photographic, cinematic, artistic, oil-painting, watercolor, cartoon, anime, pixel-art, abstract'
     }
   },
   aspectRatio: {
